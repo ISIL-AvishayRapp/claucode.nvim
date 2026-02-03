@@ -161,12 +161,17 @@ function M.remove_mcp_server()
 
   -- Use array form to prevent shell injection
   -- vim.fn.system doesn't support cwd parameter, so we temporarily change directory
+  -- Use pcall to ensure working directory is always restored
   local output
-  do
-    local prev_cwd = vim.fn.getcwd()
+  local prev_cwd = vim.fn.getcwd()
+  local ok, err = pcall(function()
     vim.api.nvim_set_current_dir(project_dir)
     output = vim.fn.system({claude_cmd, "mcp", "remove", server_name})
-    vim.api.nvim_set_current_dir(prev_cwd)
+  end)
+  vim.api.nvim_set_current_dir(prev_cwd)
+  if not ok then
+    notify.error("Failed to execute command for MCP server removal: " .. tostring(err))
+    return false
   end
   if vim.v.shell_error ~= 0 then
     notify.error("Failed to remove MCP server: " .. (output or ""))

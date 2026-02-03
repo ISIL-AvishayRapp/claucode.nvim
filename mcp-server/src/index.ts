@@ -49,7 +49,7 @@ function validateFilePath(filePath: string): { valid: boolean; resolved: string;
   
   // Ensure the resolved path starts with the working directory
   // This prevents escaping via ../ sequences
-  if (!resolved.startsWith(workDir + path.sep) && resolved !== workDir) {
+  if (!resolved.startsWith(path.normalize(`${workDir}${path.sep}`)) && resolved !== workDir) {
     return {
       valid: false,
       resolved,

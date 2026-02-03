@@ -27,13 +27,50 @@ function M.open_claude_terminal(cli_args)
     vim.api.nvim_set_current_buf(terminal_buf)
     terminal_win = vim.api.nvim_get_current_win()
     
-    local command = config.command
+    -- Build command as array to prevent injection
+    local cmd_args = {config.command}
     
+    -- Parse cli_args safely if provided
     if cli_args and cli_args ~= "" then
-      command = command .. " " .. cli_args
+      -- Robust tokenization that handles quoted strings
+      local i = 1
+      local len = #cli_args
+      while i <= len do
+        -- Skip whitespace
+        while i <= len and cli_args:sub(i, i):match("%s") do
+          i = i + 1
+        end
+        if i > len then break end
+        
+        local char = cli_args:sub(i, i)
+        local arg = ""
+        
+        if char == '"' or char == "'" then
+          -- Quoted argument: find matching closing quote
+          local quote = char
+          i = i + 1
+          local start = i
+          while i <= len and cli_args:sub(i, i) ~= quote do
+            i = i + 1
+          end
+          arg = cli_args:sub(start, i - 1)
+          i = i + 1 -- skip closing quote
+        else
+          -- Unquoted argument: read until whitespace
+          local start = i
+          while i <= len and not cli_args:sub(i, i):match("%s") do
+            i = i + 1
+          end
+          arg = cli_args:sub(start, i - 1)
+        end
+        
+        if arg ~= "" then
+          table.insert(cmd_args, arg)
+        end
+      end
     end
     
-    terminal_job_id = vim.fn.termopen(command, {
+    terminal_job_id = vim.fn.termopen(cmd_args, {
       cwd = vim.fn.getcwd(),
       on_exit = function(job_id, exit_code, event_type)
         terminal_job_id = nil
@@ -48,13 +85,13 @@ function M.open_claude_terminal(cli_args)
     
     vim.api.nvim_buf_set_name(terminal_buf, 'Claude Terminal')
     
-    vim.api.nvim_buf_set_option(terminal_buf, 'buflisted', false)
-    vim.api.nvim_buf_set_option(terminal_buf, 'bufhidden', 'hide')
+    vim.bo[terminal_buf].buflisted = false
+    vim.bo[terminal_buf].bufhidden = 'hide'
   end
   
-  vim.api.nvim_win_set_option(terminal_win, 'number', false)
-  vim.api.nvim_win_set_option(terminal_win, 'relativenumber', false)
-  vim.api.nvim_win_set_option(terminal_win, 'signcolumn', 'no')
+  vim.wo[terminal_win].number = false
+  vim.wo[terminal_win].relativenumber = false
+  vim.wo[terminal_win].signcolumn = 'no'
   
   vim.cmd('startinsert')
   

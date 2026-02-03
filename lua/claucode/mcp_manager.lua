@@ -159,10 +159,17 @@ function M.remove_mcp_server()
   local server_name = session.get_mcp_server_name()
   local project_dir = session.get_project_dir()
 
-  local cmd = string.format("cd '%s' && %s mcp remove %s", project_dir, claude_cmd, server_name)
-  local output = vim.fn.system(cmd)
+  -- Use array form to prevent shell injection
+  -- vim.fn.system doesn't support cwd parameter, so we temporarily change directory
+  local output
+  do
+    local prev_cwd = vim.fn.getcwd()
+    vim.api.nvim_set_current_dir(project_dir)
+    output = vim.fn.system({claude_cmd, "mcp", "remove", server_name})
+    vim.api.nvim_set_current_dir(prev_cwd)
+  end
   if vim.v.shell_error ~= 0 then
-    notify.error("Failed to remove MCP server: " .. output)
+    notify.error("Failed to remove MCP server: " .. (output or ""))
     return false
   end
 
